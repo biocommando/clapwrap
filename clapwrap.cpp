@@ -12,11 +12,12 @@
 #include "vst_bridge.h"
 
 const char *_log_ctx_enabled[] = {
-    //"clap_plugin",
+    "clap_plugin",
     //"clap_gui",
     //"timer",
+    "load_state",
 #ifdef PLUGIN_DEBUG_LOG
-    "plugin",
+    //"plugin",
 #endif
     nullptr
 };
@@ -304,15 +305,20 @@ static bool state_load(const clap_plugin_t* plugin,
 
     while (true) {
         int64_t r = stream->read(stream, temp, sizeof(temp));
+        clap_debug_logger("load_state", "num bytes read %ld", r);
         if (r <= 0) break;
 
         buffer.insert(buffer.end(), temp, temp + r);
     }
-
+    clap_debug_logger("load_state", "buf sz %u", (unsigned)buffer.size());
     if (buffer.empty())
         return false;
 
-    return p->vst->set_chunk(p->vst, buffer.data(), buffer.size());
+    clap_debug_logger("load_state", "set to plugin");
+    for (int i = 0; i < buffer.size(); i++)
+        clap_debug_logger("load_state", "%u", ((unsigned)buffer[i])&0xff);
+
+    return p->vst->set_chunk(p->vst, buffer.data(), buffer.size()) == 0;
 }
 
 static uint32_t audio_ports_count(const clap_plugin_t* plugin,
