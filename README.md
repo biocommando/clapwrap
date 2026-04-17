@@ -1,6 +1,6 @@
 # clapwrap
 
-This project aims to act as a minimal wrapper that makes old VST2+VSTGUI tech stack plugins compatible with the new CLAP standard.
+This project aims to act as a minimal wrapper that makes old VST2+VSTGUI tech stack plugins compatible with the CLAP plugin standard.
 
 The main thing you need to implement are the following functions (declared in `vst_bridge.h`):
 ```c

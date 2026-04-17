@@ -70,7 +70,7 @@ struct MyClapPlugin
 
 };
 
-const void *register_gui_wrapper(const clap_plugin_t* plugin, const char *id);
+static const void *register_gui_wrapper(const clap_plugin_t* plugin, const char *id);
 
 static char _plugin_path[1024] = "";
 void set_plugin_path(const char *path)
@@ -399,7 +399,7 @@ static const clap_plugin_note_ports_t note_ports_ext = {
 };
 
 #ifndef VST_GUI
-const void *register_gui_wrapper(const clap_plugin_t* plugin, const char *id)
+static const void *register_gui_wrapper(const clap_plugin_t* plugin, const char *id)
 {
     return nullptr;
 }
@@ -708,19 +708,19 @@ static bool set_transient(const clap_plugin_t *plugin, const clap_window_t *wind
     return false;
 }
 
-void suggest_title(const clap_plugin_t *plugin, const char *title)
+static void suggest_title(const clap_plugin_t *plugin, const char *title)
 {
     clap_debug_logger("clap_gui", "suggest_title");
 }
 
-bool show(const clap_plugin_t *plugin)
+static bool show(const clap_plugin_t *plugin)
 {
     clap_debug_logger("clap_gui", "show");
     get_editor(plugin)->getFrame()->setVisible(true);
     return true;
 }
 
-bool hide(const clap_plugin_t *plugin)
+static bool hide(const clap_plugin_t *plugin)
 {
     clap_debug_logger("clap_gui", "hide");
     get_editor(plugin)->getFrame()->setVisible(false);
@@ -745,7 +745,7 @@ static const clap_plugin_gui_t vstgui_wrapping_gui_ext = {
     hide,
 };
 
-const void *register_gui_wrapper(const clap_plugin_t* plugin, const char *id)
+static const void *register_gui_wrapper(const clap_plugin_t* plugin, const char *id)
 {
     auto* p = (MyClapPlugin*)plugin->plugin_data;
     if (std::string{id} == CLAP_EXT_GUI && p->vst->has_ui(p->vst))
