@@ -13,11 +13,11 @@
 
 const char *_log_ctx_enabled[] = {
     "clap_plugin",
-    //"clap_gui",
-    //"timer",
+    "clap_gui",
+    "note_events",
     "load_state",
 #ifdef PLUGIN_DEBUG_LOG
-    //"plugin",
+    "plugin",
 #endif
     nullptr
 };
@@ -25,25 +25,31 @@ const char *_log_ctx_enabled[] = {
 void clap_debug_logger(const char *ctx, const char *fmt, ...)
 {
 #if 0
-	static int counter = 0;
-    if (counter >= 1000)
-        return;
-    int enabled = 0;
-    for (int i = 0; !enabled && _log_ctx_enabled[i]; i++)
+	static int counters[32], init = 0;
+    if (!init) memset(counters, 0, sizeof(counters));
+    init = 1;
+    int enabled = 0, counter_i = 0;
+    for (int i = 0; !enabled && _log_ctx_enabled[i] && i < 32; i++)
     {
+        counter_i = i;
         if (!strcmp(_log_ctx_enabled[i], ctx))
             enabled = 1;
     }
-    if (!enabled)
+    if (!enabled || counters[counter_i] >= 1000)
         return;
+
     char fname[256];
     sprintf(fname, "D:\\code\\c\\debug-%s.log", ctx);
-	FILE *f = fopen(fname, counter ? "a" : "w");
-	++counter;
+	FILE *f = fopen(fname, counters[counter_i] ? "a" : "w");
+	++counters[counter_i];
     va_list args;
     va_start(args, fmt);
     vfprintf(f, fmt, args);
     fputc('\n', f);
+    if (counters[counter_i] >= 1000)
+    {
+        fprintf(f, "--- log line limit reached ---\n");
+    }
     fclose(f);
 #endif
 }
@@ -142,7 +148,7 @@ static clap_process_status my_process(const clap_plugin_t* plugin,
     clap_debug_logger("clap_plugin", "my_process");
     auto* p = (MyClapPlugin*)plugin->plugin_data;
 
-    float** inputs  = process->audio_inputs[0].data32;
+    float** inputs  = process->audio_inputs_count ? process->audio_inputs[0].data32 : nullptr;
     float** outputs = process->audio_outputs[0].data32;
 
     int frames = process->frames_count;
@@ -183,6 +189,15 @@ static clap_process_status my_process(const clap_plugin_t* plugin,
 
                 p->vst->process_note_event(p->vst, note, 0, 0);
                 break;
+            }
+
+            case CLAP_EVENT_MIDI: {
+                auto* me = (const clap_event_midi_t*)ev;
+                clap_debug_logger("note_events", "CLAP_EVENT_MIDI %d %d %d", (int)me->data[0], (int)me->data[1], (int)me->data[2]);
+                bool note_on = (me->data[0] & 0xF0) == 0b10010000;
+                bool note_off = (me->data[0] & 0xF0) == 0b10000000;
+                if (note_on || note_off)
+                    p->vst->process_note_event(p->vst, me->data[1], me->data[2], note_on ? 1 : 0);
             }
 
             default:

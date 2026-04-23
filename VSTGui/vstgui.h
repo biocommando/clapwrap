@@ -66,7 +66,9 @@
 #endif
 
 #if WINDOWS
+#ifndef _WIN32_WINNT
  #define _WIN32_WINNT 0x0501
+#endif
  #ifndef GDIPLUS
  #define GDIPLUS		1	// by default we use GDIPlus
  #endif
