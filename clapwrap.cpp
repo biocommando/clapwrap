@@ -85,10 +85,9 @@ struct MyClapPlugin
 
     std::vector<ParamInfo> params;
     void *editor;
-
 };
 
-static const void *register_gui_wrapper(const clap_plugin_t* plugin, const char *id);
+static const void *register_gui_wrapper(const clap_plugin_t *plugin, const char *id);
 
 static char _plugin_path[1024] = "";
 void set_plugin_path(const char *path)
@@ -103,32 +102,37 @@ const char *get_plugin_path()
     return _plugin_path;
 }
 
-static bool my_init(const clap_plugin_t* plugin) {
+static bool my_init(const clap_plugin_t *plugin)
+{
     clap_debug_logger("clap_plugin", "my_init");
-    auto* p = (MyClapPlugin*)plugin->plugin_data;
+    auto *p = (MyClapPlugin *)plugin->plugin_data;
     if (p->vst)
         return true;
 
     p->vst = create_vst_plugin();
-    if (!p->vst) return false;
+    if (!p->vst)
+        return false;
 
     int count = p->vst->get_param_count(p->vst);
 
     p->params.resize(count);
 
-    for (int i = 0; i < count; ++i) {
-        p->params[i].id = i;        // simple mapping
+    for (int i = 0; i < count; ++i)
+    {
+        p->params[i].id = i; // simple mapping
         p->params[i].vst_index = i;
     }
 
     return p->vst->init(p->vst);
 }
 
-static void my_destroy(const clap_plugin_t* plugin) {
+static void my_destroy(const clap_plugin_t *plugin)
+{
     clap_debug_logger("clap_plugin", "my_destroy");
-    auto* p = (MyClapPlugin*)plugin->plugin_data;
+    auto *p = (MyClapPlugin *)plugin->plugin_data;
 
-    if (p->vst) {
+    if (p->vst)
+    {
         p->vst->destroy(p->vst);
         delete p->vst;
     }
@@ -136,12 +140,13 @@ static void my_destroy(const clap_plugin_t* plugin) {
     delete p;
 }
 
-static bool my_activate(const clap_plugin_t* plugin,
+static bool my_activate(const clap_plugin_t *plugin,
                         double sample_rate,
                         uint32_t min_frames,
-                        uint32_t max_frames) {
+                        uint32_t max_frames)
+{
     clap_debug_logger("clap_plugin", "my_activate");
-    auto* p = (MyClapPlugin*)plugin->plugin_data;
+    auto *p = (MyClapPlugin *)plugin->plugin_data;
 
     p->sample_rate = sample_rate;
     p->block_size = max_frames;
@@ -150,52 +155,61 @@ static bool my_activate(const clap_plugin_t* plugin,
     return true;
 }
 
-static void my_deactivate(const clap_plugin_t* plugin) {
+static void my_deactivate(const clap_plugin_t *plugin)
+{
     clap_debug_logger("clap_plugin", "my_deactivate");
     // nothing yet
 }
 
-static clap_process_status my_process(const clap_plugin_t* plugin,
-                                      const clap_process_t* process) {
+static clap_process_status my_process(const clap_plugin_t *plugin,
+                                      const clap_process_t *process)
+{
     clap_debug_logger("clap_plugin", "my_process");
-    auto* p = (MyClapPlugin*)plugin->plugin_data;
+    auto *p = (MyClapPlugin *)plugin->plugin_data;
 
-    float** inputs  = process->audio_inputs_count ? process->audio_inputs[0].data32 : nullptr;
-    float** outputs = process->audio_outputs[0].data32;
+    float **inputs = process->audio_inputs_count ? process->audio_inputs[0].data32 : nullptr;
+    float **outputs = process->audio_outputs[0].data32;
 
     int frames = process->frames_count;
 
-    if (process->in_events) {
+    if (process->in_events)
+    {
         uint32_t n = process->in_events->size(process->in_events);
 
-        for (uint32_t i = 0; i < n; ++i) {
-            const clap_event_header_t* ev =
+        for (uint32_t i = 0; i < n; ++i)
+        {
+            const clap_event_header_t *ev =
                 process->in_events->get(process->in_events, i);
 
-            switch (ev->type) {
+            switch (ev->type)
+            {
 
-            case CLAP_EVENT_PARAM_VALUE: {
-                auto* pe = (const clap_event_param_value_t*)ev;
+            case CLAP_EVENT_PARAM_VALUE:
+            {
+                auto *pe = (const clap_event_param_value_t *)ev;
 
-                if (pe->param_id < p->params.size()) {
+                if (pe->param_id < p->params.size())
+                {
                     int vst_index = p->params[pe->param_id].vst_index;
                     p->vst->set_param(p->vst, vst_index, pe->value);
                 }
                 break;
             }
 
-            case CLAP_EVENT_NOTE_ON: {
-                auto* ne = (const clap_event_note_t*)ev;
+            case CLAP_EVENT_NOTE_ON:
+            {
+                auto *ne = (const clap_event_note_t *)ev;
 
                 uint8_t note = ne->key;
-                uint8_t vel  = (uint8_t)(ne->velocity * 127.0f);
+                uint8_t vel = (uint8_t)(ne->velocity * 127.0f);
 
                 p->vst->process_note_event(p->vst, note, vel, 1);
                 break;
             }
 
-            case CLAP_EVENT_NOTE_OFF: {
-                auto* ne = (const clap_event_note_t*)ev;
+            case CLAP_EVENT_NOTE_OFF:
+            {
+                auto *ne = (const clap_event_note_t *)ev;
 
                 uint8_t note = ne->key;
 
@@ -203,8 +217,9 @@ static clap_process_status my_process(const clap_plugin_t* plugin,
                 break;
             }
 
-            case CLAP_EVENT_MIDI: {
-                auto* me = (const clap_event_midi_t*)ev;
+            case CLAP_EVENT_MIDI:
+            {
+                auto *me = (const clap_event_midi_t *)ev;
                 clap_debug_logger("note_events", "CLAP_EVENT_MIDI %d %d %d", (int)me->data[0], (int)me->data[1], (int)me->data[2]);
                 bool note_on = (me->data[0] & 0xF0) == 0b10010000;
                 bool note_off = (me->data[0] & 0xF0) == 0b10000000;
@@ -223,30 +238,35 @@ static clap_process_status my_process(const clap_plugin_t* plugin,
     return CLAP_PROCESS_CONTINUE;
 }
 
-static bool my_start_processing(const clap_plugin_t* plugin) {
+static bool my_start_processing(const clap_plugin_t *plugin)
+{
     clap_debug_logger("clap_plugin", "my_start_processing");
     return true;
 }
 
-static void my_stop_processing(const clap_plugin_t* plugin) {
+static void my_stop_processing(const clap_plugin_t *plugin)
+{
     clap_debug_logger("clap_plugin", "my_stop_processing");
 }
 
-static uint32_t params_count(const clap_plugin_t* plugin) {
+static uint32_t params_count(const clap_plugin_t *plugin)
+{
     clap_debug_logger("clap_plugin", "params_count");
-    auto* p = (MyClapPlugin*)plugin->plugin_data;
+    auto *p = (MyClapPlugin *)plugin->plugin_data;
     return p->params.size();
 }
 
-static bool params_get_info(const clap_plugin_t* plugin,
+static bool params_get_info(const clap_plugin_t *plugin,
                             uint32_t index,
-                            clap_param_info_t* info) {
+                            clap_param_info_t *info)
+{
     clap_debug_logger("clap_plugin", "params_get_info");
-    auto* p = (MyClapPlugin*)plugin->plugin_data;
+    auto *p = (MyClapPlugin *)plugin->plugin_data;
 
-    if (index >= p->params.size()) return false;
+    if (index >= p->params.size())
+        return false;
 
-    auto& param = p->params[index];
+    auto &param = p->params[index];
 
     memset(info, 0, sizeof(*info));
     info->id = param.id;
@@ -262,13 +282,15 @@ static bool params_get_info(const clap_plugin_t* plugin,
     return true;
 }
 
-static bool params_get_value(const clap_plugin_t* plugin,
+static bool params_get_value(const clap_plugin_t *plugin,
                              clap_id id,
-                             double* value) {
+                             double *value)
+{
     clap_debug_logger("clap_plugin", "params_get_value");
-    auto* p = (MyClapPlugin*)plugin->plugin_data;
+    auto *p = (MyClapPlugin *)plugin->plugin_data;
 
-    if (id >= p->params.size()) return false;
+    if (id >= p->params.size())
+        return false;
 
     int vst_index = p->params[id].vst_index;
     *value = p->vst->get_param(p->vst, vst_index);
@@ -276,38 +298,40 @@ static bool params_get_value(const clap_plugin_t* plugin,
     return true;
 }
 
-static bool params_value_to_text(const clap_plugin_t* plugin,
+static bool params_value_to_text(const clap_plugin_t *plugin,
                                  clap_id id,
                                  double value,
-                                 char* out,
-                                 uint32_t size) {
+                                 char *out,
+                                 uint32_t size)
+{
     clap_debug_logger("clap_plugin", "params_value_to_text");
     if (size <= 8)
         return false;
-    auto* p = (MyClapPlugin*)plugin->plugin_data;
+    auto *p = (MyClapPlugin *)plugin->plugin_data;
     int vst_index = p->params[id].vst_index;
     p->vst->get_param_display(p->vst, vst_index, out);
-    //snprintf(out, size, "%.3f", value);
+    // snprintf(out, size, "%.3f", value);
     return true;
 }
 
-static bool params_text_to_value(const clap_plugin_t*,
+static bool params_text_to_value(const clap_plugin_t *,
                                  clap_id,
-                                 const char* text,
-                                 double* value) {
+                                 const char *text,
+                                 double *value)
+{
     clap_debug_logger("clap_plugin", "params_text_to_value");
     *value = atof(text);
     return true;
 }
 
-
-static bool state_save(const clap_plugin_t* plugin,
-                       const clap_ostream_t* stream) {
+static bool state_save(const clap_plugin_t *plugin,
+                       const clap_ostream_t *stream)
+{
     clap_debug_logger("clap_plugin", "state_save");
-    auto* p = (MyClapPlugin*)plugin->plugin_data;
+    auto *p = (MyClapPlugin *)plugin->plugin_data;
 
     size_t size = 0;
-    void* data = p->vst->get_chunk(p->vst, &size);
+    void *data = p->vst->get_chunk(p->vst, &size);
     clap_debug_logger("clap_plugin", data ? "data" : "null");
     clap_debug_logger("clap_plugin", size == 0 ? "0" : "has size");
 
@@ -320,20 +344,23 @@ static bool state_save(const clap_plugin_t* plugin,
     return written == (int64_t)size;
 }
 
-static bool state_load(const clap_plugin_t* plugin,
-                       const clap_istream_t* stream) {
+static bool state_load(const clap_plugin_t *plugin,
+                       const clap_istream_t *stream)
+{
     clap_debug_logger("clap_plugin", "state_load");
-    auto* p = (MyClapPlugin*)plugin->plugin_data;
+    auto *p = (MyClapPlugin *)plugin->plugin_data;
 
     // Read entire stream into memory
     std::vector<uint8_t> buffer;
 
     uint8_t temp[4096];
 
-    while (true) {
+    while (true)
+    {
         int64_t r = stream->read(stream, temp, sizeof(temp));
         clap_debug_logger("load_state", "num bytes read %ld", r);
-        if (r <= 0) break;
+        if (r <= 0)
+            break;
 
         buffer.insert(buffer.end(), temp, temp + r);
     }
@@ -343,24 +370,28 @@ static bool state_load(const clap_plugin_t* plugin,
 
     clap_debug_logger("load_state", "set to plugin");
     for (int i = 0; i < buffer.size(); i++)
-        clap_debug_logger("load_state", "%u", ((unsigned)buffer[i])&0xff);
+        clap_debug_logger("load_state", "%u", ((unsigned)buffer[i]) & 0xff);
 
     return p->vst->set_chunk(p->vst, buffer.data(), buffer.size()) == 0;
 }
 
-static uint32_t audio_ports_count(const clap_plugin_t* plugin,
-                                  bool is_input) {
+static uint32_t audio_ports_count(const clap_plugin_t *plugin,
+                                  bool is_input)
+{
     clap_debug_logger("clap_plugin", "audio_ports_count");
-    if (is_input && vst_is_synth()) return 0;
+    if (is_input && vst_is_synth())
+        return 0;
     return 1; // stereo in/out
 }
 
-static bool audio_ports_get(const clap_plugin_t* plugin,
+static bool audio_ports_get(const clap_plugin_t *plugin,
                             uint32_t index,
                             bool is_input,
-                            clap_audio_port_info_t* info) {
+                            clap_audio_port_info_t *info)
+{
     clap_debug_logger("clap_plugin", "audio_ports_get");
-    if (index > 0) return false;
+    if (index > 0)
+        return false;
 
     info->id = 0;
 
@@ -378,19 +409,22 @@ static bool audio_ports_get(const clap_plugin_t* plugin,
     return true;
 }
 
-
-static uint32_t note_ports_count(const clap_plugin_t*, bool is_input) {
+static uint32_t note_ports_count(const clap_plugin_t *, bool is_input)
+{
     clap_debug_logger("clap_plugin", "note_ports_count");
     return is_input && vst_is_synth() ? 1 : 0;
 }
 
-static bool note_ports_get(const clap_plugin_t*,
+static bool note_ports_get(const clap_plugin_t *,
                            uint32_t index,
                            bool is_input,
-                           clap_note_port_info_t* info) {
+                           clap_note_port_info_t *info)
+{
     clap_debug_logger("clap_plugin", "note_ports_get");
-    if (!vst_is_synth()) return false;
-    if (!is_input || index > 0) return false;
+    if (!vst_is_synth())
+        return false;
+    if (!is_input || index > 0)
+        return false;
 
     info->id = 0;
     snprintf(info->name, sizeof(info->name), "Note Input");
@@ -412,28 +446,26 @@ static const clap_plugin_params_t params_ext = {
 
 static const clap_plugin_state_t state_ext = {
     state_save,
-    state_load
-};
+    state_load};
 
 static const clap_plugin_audio_ports_t audio_ports_ext = {
     audio_ports_count,
-    audio_ports_get
-};
+    audio_ports_get};
 
 static const clap_plugin_note_ports_t note_ports_ext = {
     note_ports_count,
-    note_ports_get
-};
+    note_ports_get};
 
 #ifndef VST_GUI
-static const void *register_gui_wrapper(const clap_plugin_t* plugin, const char *id)
+static const void *register_gui_wrapper(const clap_plugin_t *plugin, const char *id)
 {
     return nullptr;
 }
 #endif
 
-static const void* my_get_extension(const clap_plugin_t* plugin,
-                                    const char* id) {
+static const void *my_get_extension(const clap_plugin_t *plugin,
+                                    const char *id)
+{
     std::string s_id = id;
     clap_debug_logger("clap_plugin", ("my_get_extension " + s_id).c_str());
     if (s_id == CLAP_EXT_PARAMS)
@@ -447,7 +479,7 @@ static const void* my_get_extension(const clap_plugin_t* plugin,
 
     if (s_id == CLAP_EXT_NOTE_PORTS)
         return &note_ports_ext;
-    
+
     auto gui = register_gui_wrapper(plugin, id);
     if (gui)
         return gui;
@@ -459,19 +491,17 @@ clap_plugin_descriptor_t _descr;
 bool _descr_init = false;
 static const char *_empty_string = "";
 
-static const char* _synth_features[] = {
+static const char *_synth_features[] = {
     CLAP_PLUGIN_FEATURE_INSTRUMENT,
     CLAP_PLUGIN_FEATURE_STEREO,
     CLAP_PLUGIN_FEATURE_SYNTHESIZER,
-    nullptr
-};
+    nullptr};
 
-static const char* _fx_features[] = {
+static const char *_fx_features[] = {
     CLAP_PLUGIN_FEATURE_AUDIO_EFFECT,
     CLAP_PLUGIN_FEATURE_STEREO,
     CLAP_PLUGIN_FEATURE_MIXING,
-    nullptr
-};
+    nullptr};
 
 static const clap_plugin_descriptor_t *get_descriptor_from_vst()
 {
@@ -546,29 +576,31 @@ const clap_plugin_factory_t *get_clap_plugin_factory()
     return &plugin_factory;
 }
 
-static const void* get_factory(const char* factory_id) {
+static const void *get_factory(const char *factory_id)
+{
     if (std::string{factory_id} == CLAP_PLUGIN_FACTORY_ID)
         return get_clap_plugin_factory();
     return nullptr;
 }
 
-static bool entry_init(const char* path) {
+static bool entry_init(const char *path)
+{
     set_plugin_path(path);
     return true;
 }
 
-static void entry_deinit(void) {
+static void entry_deinit(void)
+{
 }
 
-extern "C" {
+extern "C"
+{
 
-CLAP_EXPORT extern const clap_plugin_entry_t clap_entry = {
-    CLAP_VERSION,
-    entry_init,
-    entry_deinit,
-    get_factory
-};
-
+    CLAP_EXPORT extern const clap_plugin_entry_t clap_entry = {
+        CLAP_VERSION,
+        entry_init,
+        entry_deinit,
+        get_factory};
 }
 
 /// Implicit glue code mapping
@@ -625,12 +657,12 @@ VSTPlugin *create_vst_plugin()
 
 void *hInstance; // Required by VSTGui
 
-static AEffGUIEditorFst* get_editor(const clap_plugin_t *plugin)
+static AEffGUIEditorFst *get_editor(const clap_plugin_t *plugin)
 {
     clap_debug_logger("clap_gui", "get_editor");
-    auto* p = (MyClapPlugin*)plugin->plugin_data;
+    auto *p = (MyClapPlugin *)plugin->plugin_data;
     clap_debug_logger("clap_gui", p->editor ? "has editor" : "null");
-    return (AEffGUIEditorFst*)p->editor;
+    return (AEffGUIEditorFst *)p->editor;
 }
 
 static bool is_api_supported(const clap_plugin_t *plugin, const char *api, bool is_floating)
@@ -639,10 +671,9 @@ static bool is_api_supported(const clap_plugin_t *plugin, const char *api, bool 
     return std::string{api} == CLAP_WINDOW_API_WIN32 && !is_floating;
 }
 
-
 static bool get_preferred_api(const clap_plugin_t *plugin,
-                        const char **api,
-                        bool *is_floating)
+                              const char **api,
+                              bool *is_floating)
 {
     clap_debug_logger("clap_gui", "get_preferred_api");
     *api = CLAP_WINDOW_API_WIN32;
@@ -652,13 +683,13 @@ static bool get_preferred_api(const clap_plugin_t *plugin,
 
 void time_interval_elapsed(void *plugin)
 {
-    ((AEffGUIEditorFst*)((MyClapPlugin*)plugin)->editor)->idle();
+    ((AEffGUIEditorFst *)((MyClapPlugin *)plugin)->editor)->idle();
 }
 
 static bool create(const clap_plugin_t *plugin, const char *api, bool is_floating)
 {
     clap_debug_logger("clap_gui", "create");
-    auto* p = (MyClapPlugin*)plugin->plugin_data;
+    auto *p = (MyClapPlugin *)plugin->plugin_data;
     p->editor = p->vst->create_editor(p->vst);
     hInstance = GetModuleHandle(nullptr);
     timer_start(33, p);
@@ -669,7 +700,7 @@ static bool create(const clap_plugin_t *plugin, const char *api, bool is_floatin
 static void destroy(const clap_plugin_t *plugin)
 {
     clap_debug_logger("clap_gui", "destroy");
-    auto* p = (MyClapPlugin*)plugin->plugin_data;
+    auto *p = (MyClapPlugin *)plugin->plugin_data;
     timer_stop(p);
     if (p->editor)
     {
@@ -762,7 +793,7 @@ static const clap_plugin_gui_t vstgui_wrapping_gui_ext = {
     set_scale,
     get_size,
     can_resize,
-    get_resize_hints, 
+    get_resize_hints,
     adjust_size,
     set_size,
     set_parent,
@@ -772,13 +803,12 @@ static const clap_plugin_gui_t vstgui_wrapping_gui_ext = {
     hide,
 };
 
-static const void *register_gui_wrapper(const clap_plugin_t* plugin, const char *id)
+static const void *register_gui_wrapper(const clap_plugin_t *plugin, const char *id)
 {
-    auto* p = (MyClapPlugin*)plugin->plugin_data;
+    auto *p = (MyClapPlugin *)plugin->plugin_data;
     if (std::string{id} == CLAP_EXT_GUI && p->vst->has_ui(p->vst))
         return &vstgui_wrapping_gui_ext;
     return nullptr;
 }
-
 
 #endif
