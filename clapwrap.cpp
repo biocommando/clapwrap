@@ -11,22 +11,31 @@
 
 #include "vst_bridge.h"
 
-const char *_log_ctx_enabled[] = {
+static const char *_log_ctx_enabled[] = {
+#ifdef LOGCTX_CLAP_PLUGIN
     "clap_plugin",
-    "clap_gui",
-    "note_events",
-    "load_state",
-#ifdef PLUGIN_DEBUG_LOG
-    "plugin",
 #endif
-    nullptr
-};
+#ifdef LOGCTX_CLAP_GUI
+    "clap_gui",
+#endif
+#ifdef LOGCTX_NOTE_EVENTS
+    "note_events",
+#endif
+#ifdef LOGCTX_LOAD_STATE
+    "load_state",
+#endif
+    "plugin",
+#ifdef PLUGIN_DEBUG_LOG_CUSTOM_CTX
+    PLUGIN_DEBUG_LOG_CUSTOM_CTX,
+#endif
+    nullptr};
 
 void clap_debug_logger(const char *ctx, const char *fmt, ...)
 {
-#if 0
-	static int counters[32], init = 0;
-    if (!init) memset(counters, 0, sizeof(counters));
+#if PLUGIN_DEBUG_LOG
+    static int counters[32], init = 0;
+    if (!init)
+        memset(counters, 0, sizeof(counters));
     init = 1;
     int enabled = 0, counter_i = 0;
     for (int i = 0; !enabled && _log_ctx_enabled[i] && i < 32; i++)
@@ -38,10 +47,13 @@ void clap_debug_logger(const char *ctx, const char *fmt, ...)
     if (!enabled || counters[counter_i] >= 1000)
         return;
 
-    char fname[256];
-    sprintf(fname, "D:\\code\\c\\debug-%s.log", ctx);
-	FILE *f = fopen(fname, counters[counter_i] ? "a" : "w");
-	++counters[counter_i];
+    char fname[1024];
+    const char *tempdir = getenv("TEMP");
+    if (!tempdir)
+        return;
+    sprintf(fname, "%s\\debug-%s.log", tempdir, ctx);
+    FILE *f = fopen(fname, counters[counter_i] ? "a" : "w");
+    ++counters[counter_i];
     va_list args;
     va_start(args, fmt);
     vfprintf(f, fmt, args);
